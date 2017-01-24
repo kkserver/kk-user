@@ -12,7 +12,7 @@ type UserTaskResult struct {
 type UserTask struct {
 	app.Task
 	Uid        int64  `json:"uid"`
-	Phone      string `json:"phone"`
+	Name       string `json:"name"`
 	Autocreate bool   `json:"autocreate"`
 	Result     UserTaskResult
 }

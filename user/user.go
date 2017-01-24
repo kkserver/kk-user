@@ -21,7 +21,7 @@ const UserOptionsTypeJson = "json"
 
 type User struct {
 	Id       int64  `json:"id"`
-	Phone    string `json:"phone"`
+	Name     string `json:"name"`
 	Password string `json:"-"`
 	Ctime    int64  `json:"ctime"`
 	Atime    int64  `json:"atime"`
@@ -44,8 +44,9 @@ type UserApp struct {
 	Client      *client.Service
 	ClientCache *client.WithService
 
-	Token   string
-	Expires int64
+	Token    string
+	Expires  int64
+	CacheKey string
 
 	UserTable        kk.DBTable
 	UserOptionsTable kk.DBTable

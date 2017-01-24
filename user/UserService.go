@@ -36,9 +36,9 @@ func (S *UserService) HandleInitTask(a *UserApp, task *app.InitTask) error {
 
 func (S *UserService) HandleUserCreateTask(a *UserApp, task *UserCreateTask) error {
 
-	if task.Phone == "" {
-		task.Result.Errno = ERROR_USER_NOT_FOUND_PHONE
-		task.Result.Errmsg = "Not found phone"
+	if task.Name == "" {
+		task.Result.Errno = ERROR_USER_NOT_FOUND_NAME
+		task.Result.Errmsg = "Not found name"
 		return nil
 	}
 
@@ -64,7 +64,7 @@ func (S *UserService) HandleUserCreateTask(a *UserApp, task *UserCreateTask) err
 
 		var v = User{}
 
-		rows, err := kk.DBQuery(db, &a.UserTable, prefix, " WHERE phone=?", task.Phone)
+		rows, err := kk.DBQuery(db, &a.UserTable, prefix, " WHERE name=?", task.Name)
 
 		if err != nil {
 			task.Result.Errno = ERROR_USER
@@ -75,12 +75,12 @@ func (S *UserService) HandleUserCreateTask(a *UserApp, task *UserCreateTask) err
 		defer rows.Close()
 
 		if rows.Next() {
-			task.Result.Errno = ERROR_USER_PHONE
-			task.Result.Errmsg = "Phone number already exists"
+			task.Result.Errno = ERROR_USER_NAME
+			task.Result.Errmsg = "The name already exists"
 			return
 		}
 
-		v.Phone = task.Phone
+		v.Name = task.Name
 
 		if task.Password == "" {
 			v.Password = NewPassword(a)
@@ -189,7 +189,7 @@ func (S *UserService) HandleUserSetTask(a *UserApp, task *UserSetTask) error {
 
 func (S *UserService) HandleUserTask(a *UserApp, task *UserTask) error {
 
-	if task.Uid == 0 && task.Phone == "" {
+	if task.Uid == 0 && task.Name == "" {
 		task.Result.Errno = ERROR_USER_NOT_FOUND_UID
 		task.Result.Errmsg = "Not found uid"
 		return nil
@@ -211,7 +211,7 @@ func (S *UserService) HandleUserTask(a *UserApp, task *UserTask) error {
 	if task.Uid != 0 {
 		rows, err = kk.DBQuery(db, &a.UserTable, prefix, " WHERE id=?", task.Uid)
 	} else {
-		rows, err = kk.DBQuery(db, &a.UserTable, prefix, " WHERE phone=?", task.Phone)
+		rows, err = kk.DBQuery(db, &a.UserTable, prefix, " WHERE name=?", task.Name)
 	}
 
 	if err != nil {
@@ -236,9 +236,9 @@ func (S *UserService) HandleUserTask(a *UserApp, task *UserTask) error {
 
 	} else {
 
-		if task.Autocreate && task.Phone != "" {
+		if task.Autocreate && task.Name != "" {
 			var create = UserCreateTask{}
-			create.Phone = task.Phone
+			create.Name = task.Name
 			app.Handle(a, &create)
 			if create.Result.Errno == 0 && create.Result.User != nil {
 				task.Result.User = create.Result.User
@@ -261,7 +261,7 @@ func (S *UserService) HandleUserOptionsTask(a *UserApp, task *UserOptionsTask) e
 		return nil
 	}
 
-	var key = fmt.Sprintf("user.options.%d.%s", task.Uid, task.Name)
+	var key = fmt.Sprintf("%s.%d.%s", a.CacheKey, task.Uid, task.Name)
 
 	{
 		var cache = cache.CacheTask{}
@@ -413,14 +413,20 @@ func (S *UserService) HandleUserSetOptionsTask(a *UserApp, task *UserSetOptionsT
 		}
 	}
 
+	{
+		var cache = cache.CacheRemoveTask{}
+		cache.Key = fmt.Sprintf("%s.%d.%s", a.CacheKey, v.Uid, v.Name)
+		app.Handle(a, &cache)
+	}
+
 	return nil
 }
 
 func (S *UserService) HandleUserLoginTask(a *UserApp, task *UserLoginTask) error {
 
-	if task.Phone == "" {
-		task.Result.Errno = ERROR_USER_NOT_FOUND_PHONE
-		task.Result.Errmsg = "Not found phone"
+	if task.Name == "" {
+		task.Result.Errno = ERROR_USER_NOT_FOUND_NAME
+		task.Result.Errmsg = "Not found name"
 		return nil
 	}
 
@@ -442,7 +448,7 @@ func (S *UserService) HandleUserLoginTask(a *UserApp, task *UserLoginTask) error
 	var v = User{}
 	var scanner = kk.NewDBScaner(&v)
 
-	rows, err := kk.DBQuery(db, &a.UserTable, prefix, " WHERE phone=?", task.Phone)
+	rows, err := kk.DBQuery(db, &a.UserTable, prefix, " WHERE name=?", task.Name)
 
 	if err != nil {
 		task.Result.Errno = ERROR_USER

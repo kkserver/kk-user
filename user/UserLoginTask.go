@@ -11,7 +11,7 @@ type UserLoginTaskResult struct {
 
 type UserLoginTask struct {
 	app.Task
-	Phone    string `json:"phone"`
+	Name     string `json:"name"`
 	Password string `json:"password"`
 	Result   UserLoginTaskResult
 }
