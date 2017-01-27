@@ -6,6 +6,7 @@ import (
 	"github.com/kkserver/kk-cache/cache"
 	"github.com/kkserver/kk-lib/kk"
 	"github.com/kkserver/kk-lib/kk/app"
+	"github.com/kkserver/kk-lib/kk/dynamic"
 	"github.com/kkserver/kk-lib/kk/json"
 	"log"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 type UserService struct {
 	app.Service
+
 	Init       *app.InitTask
 	Create     *UserCreateTask
 	Get        *UserTask
@@ -20,6 +22,8 @@ type UserService struct {
 	Login      *UserLoginTask
 	GetOptions *UserOptionsTask
 	SetOptions *UserSetOptionsTask
+
+	Users map[string]interface{} //初始化用户
 }
 
 func (S *UserService) Handle(a app.IApp, task app.ITask) error {
@@ -27,10 +31,48 @@ func (S *UserService) Handle(a app.IApp, task app.ITask) error {
 }
 
 func (S *UserService) HandleInitTask(a *UserApp, task *app.InitTask) error {
-	_, err := a.GetDB()
+
+	db, err := a.GetDB()
+
 	if err != nil {
 		log.Println("[UserService][HandleInitTask]" + err.Error())
+		return nil
 	}
+
+	v := User{}
+
+	if S.Users != nil {
+
+		for name, password := range S.Users {
+
+			rows, err := kk.DBQuery(db, &a.UserTable, a.DB.Prefix, " WHERE name=?", name)
+
+			if err == nil {
+
+				if !rows.Next() {
+
+					v.Name = name
+					v.Password = EncodePassword(a, dynamic.StringValue(password, ""))
+					v.Atime = time.Now().Unix()
+					v.Mtime = v.Atime
+					v.Ctime = v.Atime
+
+					_, err = kk.DBInsert(db, &a.UserTable, a.DB.Prefix, &v)
+
+					if err != nil {
+						log.Println(err)
+					}
+				}
+
+				rows.Close()
+
+			} else {
+				log.Println(err)
+			}
+		}
+
+	}
+
 	return nil
 }
 
