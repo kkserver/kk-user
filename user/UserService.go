@@ -20,6 +20,7 @@ type UserService struct {
 	Get        *UserTask
 	Set        *UserSetTask
 	Login      *UserLoginTask
+	Password   *UserPasswordTask
 	GetOptions *UserOptionsTask
 	SetOptions *UserSetOptionsTask
 
@@ -525,6 +526,62 @@ func (S *UserService) HandleUserLoginTask(a *UserApp, task *UserLoginTask) error
 		if err != nil {
 			task.Result.Errno = ERROR_USER
 			task.Result.Errmsg = err.Error()
+			return nil
+		}
+
+		task.Result.User = &v
+
+	} else {
+		task.Result.Errno = ERROR_USER_NOT_FOUND
+		task.Result.Errmsg = "Not found user"
+	}
+
+	return nil
+}
+
+func (S *UserService) HandleUserPasswordTask(a *UserApp, task *UserPasswordTask) error {
+
+	if task.Uid == 0 {
+		task.Result.Errno = ERROR_USER_NOT_FOUND_UID
+		task.Result.Errmsg = "Not found uid"
+		return nil
+	}
+
+	var db, err = a.GetDB()
+
+	if err != nil {
+		task.Result.Errno = ERROR_USER
+		task.Result.Errmsg = err.Error()
+		return nil
+	}
+
+	var prefix = a.DB.Prefix
+	var v = User{}
+	var scanner = kk.NewDBScaner(&v)
+
+	rows, err := kk.DBQuery(db, &a.UserTable, prefix, " WHERE id=?", task.Uid)
+
+	if err != nil {
+		task.Result.Errno = ERROR_USER
+		task.Result.Errmsg = err.Error()
+		return nil
+	}
+
+	defer rows.Close()
+
+	if rows.Next() {
+
+		err = scanner.Scan(rows)
+
+		if err != nil {
+			task.Result.Errno = ERROR_USER
+			task.Result.Errmsg = err.Error()
+			return nil
+		}
+
+		if EncodePassword(a, task.Password) != v.Password {
+			task.Result.Errno = ERROR_USER_PASSWORD
+			task.Result.Errmsg = "user password fail"
 			return nil
 		}
 
