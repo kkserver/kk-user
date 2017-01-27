@@ -61,6 +61,8 @@ func (S *UserService) HandleInitTask(a *UserApp, task *app.InitTask) error {
 
 					if err != nil {
 						log.Println(err)
+					} else {
+						log.Println("Create User " + name)
 					}
 				}
 
