@@ -1,6 +1,7 @@
 package user
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"github.com/kkserver/kk-cache/cache"
@@ -23,6 +24,7 @@ type UserService struct {
 	Password   *UserPasswordTask
 	GetOptions *UserOptionsTask
 	SetOptions *UserSetOptionsTask
+	Query      *UserQueryTask
 
 	Users map[string]interface{} //初始化用户
 }
@@ -591,6 +593,103 @@ func (S *UserService) HandleUserPasswordTask(a *UserApp, task *UserPasswordTask)
 		task.Result.Errno = ERROR_USER_NOT_FOUND
 		task.Result.Errmsg = "Not found user"
 	}
+
+	return nil
+}
+
+func (S *UserService) HandleUserQueryTask(a *UserApp, task *UserQueryTask) error {
+
+	var db, err = a.GetDB()
+
+	if err != nil {
+		task.Result.Errno = ERROR_USER
+		task.Result.Errmsg = err.Error()
+		return nil
+	}
+
+	var users = []User{}
+	var prefix = a.DB.Prefix
+
+	sql := bytes.NewBuffer(nil)
+
+	args := []interface{}{}
+
+	sql.WriteString(" WHERE 1")
+
+	if task.Uid != 0 {
+		sql.WriteString(" AND id=?")
+		args = append(args, task.Uid)
+	}
+
+	if task.Name != "" {
+		sql.WriteString(" AND name=?")
+		args = append(args, task.Name)
+	}
+
+	if task.OrderBy == "asc" {
+		sql.WriteString(" ORDER BY id ASC")
+	} else {
+		sql.WriteString(" ORDER BY id DESC")
+	}
+
+	var pageIndex = task.PageIndex
+	var pageSize = task.PageSize
+
+	if pageIndex < 1 {
+		pageIndex = 1
+	}
+
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	if task.Counter {
+		var counter = UserQueryCounter{}
+		counter.PageIndex = pageIndex
+		counter.PageSize = pageSize
+		counter.RowCount, err = kk.DBQueryCount(db, &a.UserTable, prefix, sql.String(), args...)
+		if err != nil {
+			task.Result.Errno = ERROR_USER
+			task.Result.Errmsg = err.Error()
+			return nil
+		}
+		if counter.RowCount%pageSize == 0 {
+			counter.PageCount = counter.RowCount / pageSize
+		} else {
+			counter.PageCount = counter.RowCount/pageSize + 1
+		}
+		task.Result.Counter = &counter
+	}
+
+	sql.WriteString(fmt.Sprintf(" LIMIT %d,%d", (pageIndex-1)*pageSize, pageSize))
+
+	var v = User{}
+	var scanner = kk.NewDBScaner(&v)
+
+	rows, err := kk.DBQuery(db, &a.UserTable, prefix, sql.String(), args...)
+
+	if err != nil {
+		task.Result.Errno = ERROR_USER
+		task.Result.Errmsg = err.Error()
+		return nil
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+
+		err = scanner.Scan(rows)
+
+		if err != nil {
+			task.Result.Errno = ERROR_USER
+			task.Result.Errmsg = err.Error()
+			return nil
+		}
+
+		users = append(users, v)
+	}
+
+	task.Result.Users = users
 
 	return nil
 }
