@@ -21,6 +21,7 @@ type UserQueryTask struct {
 	app.Task
 	Uid       int64  `json:"uid"`
 	Name      string `json:"name"`
+	Names     string `json:"names"`
 	OrderBy   string `json:"orderBy"` // desc, asc
 	PageIndex int    `json:"p"`
 	PageSize  int    `json:"size"`

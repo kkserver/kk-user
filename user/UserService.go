@@ -626,6 +626,20 @@ func (S *UserService) HandleUserQueryTask(a *UserApp, task *UserQueryTask) error
 		args = append(args, task.Name)
 	}
 
+	if task.Names != "" {
+
+		sql.WriteString(" AND name IN (")
+		for i, v := range strings.Split(task.Names, ",") {
+			if i != 0 {
+				sql.WriteString(",")
+			}
+			sql.WriteString("?")
+			args = append(args, v)
+		}
+		sql.WriteString(")")
+
+	}
+
 	if task.OrderBy == "asc" {
 		sql.WriteString(" ORDER BY id ASC")
 	} else {
